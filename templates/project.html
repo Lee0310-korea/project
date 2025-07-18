@@ -97,18 +97,17 @@
 
       for (let d = 1; d <= lastDate; d++) {
         const day = new Date(year, month, d).getDay();
-
         let classes = '';
+
         if (year === thisYear && month === thisMonth && d === thisDate) {
           classes = 'today';
         }
-        if(selectedDate === formatDate(new Date(year, month, d))) {
+        if (selectedDate === formatDate(new Date(year, month, d))) {
           classes += (classes ? ' ' : '') + 'selected';
         }
 
-        const fullDate = formatDate(new Date(year, month, d)); // YYYY-MM-DD
-
-        calendar += `<td class="${classes} date-cell" data-date="${fullDate}">${d}</td>`;
+        const dateStr = formatDate(new Date(year, month, d));
+        calendar += `<td class="${classes}" data-date="${dateStr}">${d}</td>`;
 
         if (day === 6 && d !== lastDate) {
           calendar += '</tr><tr>';
@@ -119,18 +118,6 @@
       document.getElementById('calendar').innerHTML = calendar;
 
       document.querySelectorAll('#calendar td').forEach(td => {
-        td.addEventListener('click', () => {
-          if (td.innerText !== '') {
-            document.querySelectorAll('#calendar td').forEach(cell => {
-              cell.classList.remove('selected');
-            });
-            td.classList.add('selected');
-            selectedDate = td.dataset.date;
-            console.log(`${selectedDate} 선택됨`);
-          }
-        });
-
-        // 더블클릭하면 페이지 이동
         td.addEventListener('dblclick', () => {
           if (td.dataset.date) {
             window.location.href = `/photos_page/${td.dataset.date}`;
