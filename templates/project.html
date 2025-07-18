@@ -106,7 +106,9 @@
           classes += (classes ? ' ' : '') + 'selected';
         }
 
-        calendar += `<td class="${classes}" data-date="${d}">${d}</td>`;
+        const fullDate = formatDate(new Date(year, month, d)); // YYYY-MM-DD
+
+        calendar += `<td class="${classes} date-cell" data-date="${fullDate}">${d}</td>`;
 
         if (day === 6 && d !== lastDate) {
           calendar += '</tr><tr>';
@@ -123,8 +125,15 @@
               cell.classList.remove('selected');
             });
             td.classList.add('selected');
-            selectedDate = formatDate(new Date(year, month, td.dataset.date));
+            selectedDate = td.dataset.date;
             console.log(`${selectedDate} 선택됨`);
+          }
+        });
+
+        // 더블클릭하면 페이지 이동
+        td.addEventListener('dblclick', () => {
+          if (td.dataset.date) {
+            window.location.href = `/photos_page/${td.dataset.date}`;
           }
         });
       });
