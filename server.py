@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, redirect, url_for
 import os
 import base64
 
@@ -15,49 +15,26 @@ def index():
 
 @app.route('/upload', methods=['POST'])
 def upload():
-    if 'files[]' not in request.files:
-        return jsonify({'status': 'fail', 'message': 'No file part'})
+    if 'file' not in request.files or 'date' not in request.form:
+        return redirect(request.referrer)
     
-    files = request.files.getlist('files[]')
+    file = request.files['file']
     date = request.form.get('date')
-    
-    if not date:
-        return jsonify({'status': 'fail', 'message': 'No date specified'})
     
     date_folder = os.path.join(app.config['UPLOAD_FOLDER'], date)
     if not os.path.exists(date_folder):
         os.makedirs(date_folder)
     
-    saved_files = []
-    for file in files:
-        filename = file.filename
-        filepath = os.path.join(date_folder, filename)
-        file.save(filepath)
-        saved_files.append(filename)
+    filepath = os.path.join(date_folder, file.filename)
+    file.save(filepath)
     
-    return jsonify({'status': 'success', 'message': f'{len(saved_files)} files uploaded for {date}.'})
-
-@app.route('/photos/<date>', methods=['GET'])
-def get_photos(date):
-    date_folder = os.path.join(app.config['UPLOAD_FOLDER'], date)
-    if not os.path.exists(date_folder):
-        return jsonify([])
-    
-    files = os.listdir(date_folder)
-    photos = []
-    for filename in files:
-        filepath = os.path.join(date_folder, filename)
-        with open(filepath, 'rb') as f:
-            data = f.read()
-            encoded = base64.b64encode(data).decode('utf-8')
-            photos.append(f"data:image/jpeg;base64,{encoded}")
-    
-    return jsonify(photos)
+    return redirect(url_for('get_photos_page', date=date))
 
 @app.route('/photos_page/<date>')
 def get_photos_page(date):
     date_folder = os.path.join(app.config['UPLOAD_FOLDER'], date)
     photos = []
+    
     if os.path.exists(date_folder):
         files = os.listdir(date_folder)
         for filename in files:
