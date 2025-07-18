@@ -1,27 +1,42 @@
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify
 import os
 import base64
+import json
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'
 app.config['UPLOAD_FOLDER'] = 'uploads'
 
-# 사용자 데이터 (아이디: 해시된 비밀번호)
-users = {
-    'admin': generate_password_hash('1234')
-}
+USERS_FILE = 'users.json'
+
+# 🔴 1. users.json 읽기
+def load_users():
+    if os.path.exists(USERS_FILE):
+        with open(USERS_FILE, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    else:
+        # 파일 없으면 기본 admin 계정 생성 후 저장
+        users = {'admin': generate_password_hash('1234')}
+        save_users(users)
+        return users
+
+# 🔴 2. users.json 저장하기
+def save_users(users):
+    with open(USERS_FILE, 'w', encoding='utf-8') as f:
+        json.dump(users, f, ensure_ascii=False, indent=2)
+
+# ✅ 3. users 딕셔너리 초기화
+users = load_users()
 
 # 업로드 폴더 생성
-if not os.path.exists(app.config['UPLOAD_FOLDER']):
-    os.makedirs(app.config['UPLOAD_FOLDER'])
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 @app.route('/')
 def index():
     if 'user_id' not in session:
         return redirect(url_for('login'))
-    username = session['user_id']
-    return render_template('project.html', username=username)
+    return render_template('calendar.html', username=session['user_id'])
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -47,7 +62,9 @@ def register():
         password = request.form['password']
         if username in users:
             return render_template('register.html', error='이미 존재하는 아이디입니다.')
+        # 비밀번호 해시 후 저장
         users[username] = generate_password_hash(password)
+        save_users(users)
         return redirect(url_for('login'))
     return render_template('register.html')
 
@@ -62,12 +79,12 @@ def upload():
     
     file = request.files['file']
     date = request.form.get('date')
-    category = request.form.get('photo_type', 'face')  # photo_type 으로 수정
+    photo_type = request.form.get('photo_type', 'face')
 
     if not date:
         return jsonify({'status': 'fail', 'message': '날짜가 없습니다.'})
 
-    save_folder = os.path.join(app.config['UPLOAD_FOLDER'], user_id, date, category)
+    save_folder = os.path.join(app.config['UPLOAD_FOLDER'], user_id, date, photo_type)
     os.makedirs(save_folder, exist_ok=True)
 
     filepath = os.path.join(save_folder, file.filename)
@@ -83,12 +100,12 @@ def delete_photo():
 
     date = request.form.get('date')
     filename = request.form.get('filename')
-    category = request.form.get('photo_type', 'face')
+    photo_type = request.form.get('photo_type', 'face')
 
     if not date or not filename:
         return redirect(url_for('index'))
 
-    file_path = os.path.join(app.config['UPLOAD_FOLDER'], user_id, date, category, filename)
+    file_path = os.path.join(app.config['UPLOAD_FOLDER'], user_id, date, photo_type, filename)
     if os.path.exists(file_path) and os.path.isfile(file_path):
         os.remove(file_path)
 
@@ -100,7 +117,6 @@ def photos_page(date):
         return redirect(url_for('login'))
     user_id = session['user_id']
 
-    # 사진 종류별로 불러오기 (예: face, real)
     categories = ['face', 'real']
     photos = []
 
