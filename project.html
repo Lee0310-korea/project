@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>로그인 + 달력 + 파일첨부 + 사진보기</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      display: flex;
+      justify-content: center;
+      margin-top: 50px;
+      flex-direction: column;
+      align-items: center;
+    }
+    table {
+      border-collapse: collapse;
+      text-align: center;
+      margin-top: 10px;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      width: 100px;
+      height: 100px;
+      cursor: pointer;
+      vertical-align: middle;
+    }
+    th {
+      background-color: #f2f2f2;
+    }
+    .today {
+      background-color: #87cefa;
+      color: white;
+    }
+    .selected {
+      background-color: #ff6347;
+      color: white;
+    }
+    .today.selected {
+      background-color: #ff4500;
+      color: white;
+    }
+    .controls {
+      display: flex;
+      justify-content: space-between;
+      width: 300px;
+      margin-bottom: 10px;
+    }
+    button {
+      padding: 5px 10px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    #loginPage, #calendarPage, #uploadPage, #viewPage {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+    }
+    #loginPage.active, #calendarPage.active, #uploadPage.active, #viewPage.active {
+      display: flex;
+    }
+    input {
+      padding: 5px;
+      margin: 5px 0;
+      font-size: 16px;
+      width: 200px;
+    }
+    label {
+      margin-top: 10px;
+    }
+    #photoList img {
+      max-width: 150px;
+      max-height: 150px;
+      margin: 5px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+    #photoList {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 로그인 페이지 -->
+  <div id="loginPage" class="active">
+    <h2>로그인</h2>
+    <input type="text" id="username" placeholder="아이디 입력" />
+    <input type="password" id="password" placeholder="비밀번호 입력" />
+    <button id="loginBtn">로그인</button>
+    <p id="loginMsg" style="color:red;"></p>
+  </div>
+
+  <!-- 달력 페이지 -->
+  <div id="calendarPage">
+    <div class="controls">
+      <button id="prev">이전 달</button>
+      <div id="monthYear"></div>
+      <button id="next">다음 달</button>
+    </div>
+
+    <div id="calendar"></div>
+    <button id="goUpload" style="margin-top: 20px;">파일 업로드 페이지로 이동</button>
+    <button id="goView" style="margin-top: 10px;">사진 보기 페이지로 이동</button>
+    <button id="logoutBtn" style="margin-top: 10px;">로그아웃</button>
+  </div>
+
+  <!-- 파일 업로드 페이지 -->
+  <div id="uploadPage">
+    <h2>파일 업로드</h2>
+    <p>선택된 날짜: <span id="uploadSelectedDate">-</span></p>
+    <input type="file" id="fileInput" accept="image/*" multiple />
+    <button id="uploadBtn">업로드</button>
+    <button id="backToCalendar" style="margin-top: 10px;">달력으로 돌아가기</button>
+    <p id="uploadMsg" style="color:green;"></p>
+  </div>
+
+  <!-- 사진 보기 페이지 -->
+  <div id="viewPage">
+    <h2>사진 보기</h2>
+    <p>날짜 선택:
+      <input type="date" id="viewDatePicker" />
+    </p>
+    <div id="photoList">사진이 없습니다.</div>
+    <button id="backToCalendarFromView" style="margin-top: 10px;">달력으로 돌아가기</button>
+  </div>
+
+  <script>
+    // 로그인 데이터
+    const validUser = {
+      username: 'user',
+      password: '1234'
+    };
+
+    const loginPage = document.getElementById('loginPage');
+    const calendarPage = document.getElementById('calendarPage');
+    const uploadPage = document.getElementById('uploadPage');
+    const viewPage = document.getElementById('viewPage');
+
+    function showPage(page) {
+      loginPage.classList.remove('active');
+      calendarPage.classList.remove('active');
+      uploadPage.classList.remove('active');
+      viewPage.classList.remove('active');
+      page.classList.add('active');
+    }
+
+    function isLoggedIn() {
+      return localStorage.getItem('loggedIn') === 'true';
+    }
+
+    // 선택된 날짜를 전역으로 관리 (yyyy-mm-dd)
+    let selectedDate = null;
+
+    // 로그인 체크 후 초기화
+    window.onload = () => {
+      if (isLoggedIn()) {
+        showPage(calendarPage);
+        createCalendar(current);
+      } else {
+        showPage(loginPage);
+      }
+    };
+
+    // 로그인 버튼
+    document.getElementById('loginBtn').addEventListener('click', () => {
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value.trim();
+      const loginMsg = document.getElementById('loginMsg');
+
+      if (username === validUser.username && password === validUser.password) {
+        localStorage.setItem('loggedIn', 'true');
+        loginMsg.innerText = '';
+        showPage(calendarPage);
+        createCalendar(current);
+      } else {
+        loginMsg.innerText = '아이디 또는 비밀번호가 잘못되었습니다.';
+      }
+    });
+
+    // 로그아웃
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+      localStorage.removeItem('loggedIn');
+      selectedDate = null;
+      showPage(loginPage);
+    });
+
+    // 달력에서 날짜 선택 시
+    // yyyy-mm-dd 형식으로 저장하고 달력에 표시
+    function formatDate(date) {
+      const y = date.getFullYear();
+      const m = (date.getMonth() + 1).toString().padStart(2, '0');
+      const d = date.getDate().toString().padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+
+    // 파일 업로드 페이지로 이동
+    document.getElementById('goUpload').addEventListener('click', () => {
+      if (!selectedDate) {
+        alert('달력에서 먼저 날짜를 선택해주세요.');
+        return;
+      }
+      showPage(uploadPage);
+      document.getElementById('uploadMsg').innerText = '';
+      document.getElementById('fileInput').value = '';
+      document.getElementById('uploadSelectedDate').innerText = selectedDate;
+    });
+
+    // 사진 보기 페이지로 이동
+    document.getElementById('goView').addEventListener('click', () => {
+      showPage(viewPage);
+      // 날짜 선택 박스 기본값을 오늘 또는 선택된 날짜로 설정
+      if(selectedDate) {
+        document.getElementById('viewDatePicker').value = selectedDate;
+      } else {
+        document.getElementById('viewDatePicker').value = formatDate(new Date());
+      }
+      loadPhotosForDate(document.getElementById('viewDatePicker').value);
+    });
+
+    // 사진 보기 페이지 날짜 선택 바뀌면 사진 로드
+    document.getElementById('viewDatePicker').addEventListener('change', e => {
+      loadPhotosForDate(e.target.value);
+    });
+
+    // 파일 업로드 버튼
+    document.getElementById('uploadBtn').addEventListener('click', () => {
+      const fileInput = document.getElementById('fileInput');
+      const uploadMsg = document.getElementById('uploadMsg');
+
+      if (fileInput.files.length === 0) {
+        uploadMsg.style.color = 'red';
+        uploadMsg.innerText = '업로드할 파일을 선택해주세요.';
+        return;
+      }
+
+      // 파일들을 Base64로 읽어서 저장 (로컬스토리지에 날짜별 배열로 저장)
+      const files = Array.from(fileInput.files);
+      const promises = files.map(file => {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = () => reject('파일 읽기 오류');
+          reader.readAsDataURL(file);
+        });
+      });
+
+      Promise.all(promises).then(base64files => {
+        // 로컬스토리지에 저장
+        const storageKey = 'photos_' + selectedDate;
+        const existing = JSON.parse(localStorage.getItem(storageKey)) || [];
+        const newList = existing.concat(base64files);
+        localStorage.setItem(storageKey, JSON.stringify(newList));
+
+        uploadMsg.style.color = 'green';
+        uploadMsg.innerText = `${files.length}개 파일이 "${selectedDate}" 날짜로 업로드 되었습니다.`;
+        fileInput.value = '';
+      }).catch(err => {
+        uploadMsg.style.color = 'red';
+        uploadMsg.innerText = err;
+      });
+    });
+
+    // 달력으로 돌아가기 버튼들
+    document.getElementById('backToCalendar').addEventListener('click', () => {
+      showPage(calendarPage);
+    });
+    document.getElementById('backToCalendarFromView').addEventListener('click', () => {
+      showPage(calendarPage);
+    });
+
+    // 사진 보기 페이지에서 사진 로드 함수
+    function loadPhotosForDate(dateStr) {
+      const photoList = document.getElementById('photoList');
+      const storageKey = 'photos_' + dateStr;
+      const photos = JSON.parse(localStorage.getItem(storageKey)) || [];
+
+      if (photos.length === 0) {
+        photoList.innerHTML = '사진이 없습니다.';
+        return;
+      }
+
+      photoList.innerHTML = '';
+      photos.forEach(src => {
+        const img = document.createElement('img');
+        img.src = src;
+        photoList.appendChild(img);
+      });
+    }
+
+    // --- 기존 달력 스크립트 ---
+    let current = new Date();
+
+    function createCalendar(date) {
+      const year = date.getFullYear();
+      const month = date.getMonth();
+
+      const today = new Date();
+      const thisYear = today.getFullYear();
+      const thisMonth = today.getMonth();
+      const thisDate = today.getDate();
+
+      const firstDay = new Date(year, month, 1).getDay();
+      const lastDate = new Date(year, month + 1, 0).getDate();
+
+      document.getElementById('monthYear').innerText = `${year}년 ${month + 1}월`;
+
+      let calendar = '<table>';
+      calendar += '<tr><th>일</th><th>월</th><th>화</th><th>수</th><th>목</th><th>금</th><th>토</th></tr>';
+      calendar += '<tr>';
+
+      for (let i = 0; i < firstDay; i++) {
+        calendar += '<td></td>';
+      }
+
+      for (let d = 1; d <= lastDate; d++) {
+        const day = new Date(year, month, d).getDay();
+
+        let classes = '';
+        if (year === thisYear && month === thisMonth && d === thisDate) {
+          classes = 'today';
+        }
+        // 선택된 날짜 스타일 적용
+        if(selectedDate === formatDate(new Date(year, month, d))) {
+          classes += (classes ? ' ' : '') + 'selected';
+        }
+
+        calendar += `<td class="${classes}" data-date="${d}">${d}</td>`;
+
+        if (day === 6 && d !== lastDate) {
+          calendar += '</tr><tr>';
+        }
+      }
+
+      calendar += '</tr></table>';
+      document.getElementById('calendar').innerHTML = calendar;
+
+      document.querySelectorAll('#calendar td').forEach(td => {
+        td.addEventListener('click', () => {
+          if (td.innerText !== '') {
+            document.querySelectorAll('#calendar td').forEach(cell => {
+              cell.classList.remove('selected');
+            });
+            td.classList.add('selected');
+            selectedDate = formatDate(new Date(year, month, td.dataset.date));
+            console.log(`${selectedDate} 선택됨`);
+          }
+        });
+      });
+    }
+
+    document.getElementById('prev').addEventListener('click', () => {
+      current.setMonth(current.getMonth() - 1);
+      createCalendar(current);
+    });
+
+    document.getElementById('next').addEventListener('click', () => {
+      current.setMonth(current.getMonth() + 1);
+      createCalendar(current);
+    });
+
+  </script>
+
+</body>
+</html>
