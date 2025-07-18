@@ -20,7 +20,8 @@ if not os.path.exists(app.config['UPLOAD_FOLDER']):
 def index():
     if 'user_id' not in session:
         return redirect(url_for('login'))
-    return render_template('project.html')
+    username = session['user_id']
+    return render_template('project.html', username=username)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -61,7 +62,7 @@ def upload():
     
     file = request.files['file']
     date = request.form.get('date')
-    category = request.form.get('category', 'face')  # 얼굴 사진 or 실제 작창 등
+    category = request.form.get('photo_type', 'face')  # photo_type 으로 수정
 
     if not date:
         return jsonify({'status': 'fail', 'message': '날짜가 없습니다.'})
@@ -82,7 +83,7 @@ def delete_photo():
 
     date = request.form.get('date')
     filename = request.form.get('filename')
-    category = request.form.get('category', 'face')
+    category = request.form.get('photo_type', 'face')
 
     if not date or not filename:
         return redirect(url_for('index'))
@@ -113,9 +114,13 @@ def photos_page(date):
                     with open(filepath, 'rb') as f:
                         data = f.read()
                         encoded = base64.b64encode(data).decode('utf-8')
-                        photos.append({'filename': filename, 'data': f"data:image/jpeg;base64,{encoded}", 'category': category})
+                        photos.append({
+                            'filename': filename,
+                            'data': f"data:image/jpeg;base64,{encoded}",
+                            'photo_type': category
+                        })
 
-    return render_template('photos.html', date=date, photos=photos)
+    return render_template('photos.html', date=date, photos=photos, username=user_id)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
