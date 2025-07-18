@@ -10,7 +10,7 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 
 USERS_FILE = 'users.json'
 
-# 1. users.json 읽기
+# 🔴 1. users.json 읽기
 def load_users():
     if os.path.exists(USERS_FILE):
         with open(USERS_FILE, 'r', encoding='utf-8') as f:
@@ -21,12 +21,12 @@ def load_users():
         save_users(users)
         return users
 
-# 2. users.json 저장하기
+# 🔴 2. users.json 저장하기
 def save_users(users):
     with open(USERS_FILE, 'w', encoding='utf-8') as f:
         json.dump(users, f, ensure_ascii=False, indent=2)
 
-# 3. users 딕셔너리 초기화
+# ✅ 3. users 딕셔너리 초기화
 users = load_users()
 
 # 업로드 폴더 생성
@@ -36,7 +36,7 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 def index():
     if 'user_id' not in session:
         return redirect(url_for('login'))
-    return render_template('calendar.html', username=session['user_id'])
+    return render_template('project.html', username=session['user_id'])
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
