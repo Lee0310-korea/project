@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>{{ date }} 사진</title>
+  <title>{{ date }} 사진 - {{ username }}</title>
   <style>
     body {
       font-family: sans-serif;
@@ -12,34 +12,61 @@
     .photo-container {
       display: inline-block;
       margin: 20px;
+      vertical-align: top;
     }
     img {
       display: block;
       margin: 0 auto 10px auto;
       max-width: 300px;
+      border-radius: 8px;
+      box-shadow: 0 0 8px rgba(0,0,0,0.2);
     }
     form {
-      display: inline;
+      display: inline-block;
     }
     .upload-section {
-      margin-top: 30px;
+      margin-top: 40px;
     }
-    .upload-form {
-      margin: 10px;
+    a {
+      display: inline-block;
+      margin-top: 30px;
+      text-decoration: none;
+      color: #007BFF;
+      font-weight: bold;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+    h1 {
+      margin-bottom: 10px;
+    }
+    .btn {
+      background-color: #007BFF;
+      border: none;
+      color: white;
+      padding: 8px 16px;
+      font-size: 14px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-top: 5px;
+    }
+    .btn.delete {
+      background-color: #dc3545;
     }
   </style>
 </head>
 <body>
-  <h1>{{ date }} 사진</h1>
+  <h1>{{ date }} 사진 ({{ username }})</h1>
 
   {% if photos %}
     {% for photo in photos %}
       <div class="photo-container">
         <img src="{{ photo.data }}" alt="Photo">
-        <form action="/delete_photo" method="post">
+        <form action="{{ url_for('delete_photo') }}" method="post" onsubmit="return confirm('정말 삭제하시겠습니까?');">
           <input type="hidden" name="date" value="{{ date }}">
           <input type="hidden" name="filename" value="{{ photo.filename }}">
-          <button type="submit">삭제</button>
+          <input type="hidden" name="photo_type" value="{{ photo.photo_type or 'default' }}">
+          <button type="submit" class="btn delete">삭제</button>
         </form>
       </div>
     {% endfor %}
@@ -48,20 +75,22 @@
   {% endif %}
 
   <div class="upload-section">
-    <form class="upload-form" action="/upload" method="post" enctype="multipart/form-data">
+    <h3>사진 업로드</h3>
+    <form action="{{ url_for('upload') }}" method="post" enctype="multipart/form-data">
       <input type="hidden" name="date" value="{{ date }}">
-      <input type="file" name="face_photo" accept="image/*" required>
-      <button type="submit">얼굴 사진 업로드</button>
-    </form>
-
-    <form class="upload-form" action="/upload" method="post" enctype="multipart/form-data">
-      <input type="hidden" name="date" value="{{ date }}">
-      <input type="file" name="real_photo" accept="image/*" required>
-      <button type="submit">실제 작창 업로드</button>
+      <label>
+        <input type="radio" name="photo_type" value="face" checked> 얼굴 사진
+      </label>
+      <label>
+        <input type="radio" name="photo_type" value="real"> 실제 작창
+      </label>
+      <br><br>
+      <input type="file" name="file" accept="image/*" required>
+      <br><br>
+      <button type="submit" class="btn">사진 업로드</button>
     </form>
   </div>
 
-  <br>
-  <a href="/">← 달력으로 돌아가기</a>
+  <a href="{{ url_for('calendar_view') }}">← 달력으로 돌아가기</a>
 </body>
 </html>
