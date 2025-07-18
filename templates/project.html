@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>달력</title>
+  <title>달력 - {{ username }}님 환영합니다</title>
   <style>
     body {
       font-family: sans-serif;
@@ -50,9 +50,20 @@
       font-size: 14px;
       cursor: pointer;
     }
+    #logout {
+      position: absolute;
+      top: 10px;
+      right: 20px;
+    }
   </style>
 </head>
 <body>
+
+  <div id="logout">
+    <a href="{{ url_for('logout') }}">로그아웃</a>
+  </div>
+
+  <h2>{{ username }}님, 달력에 날짜를 클릭하세요.</h2>
 
   <div class="controls">
     <button id="prev">이전 달</button>
@@ -97,17 +108,16 @@
 
       for (let d = 1; d <= lastDate; d++) {
         const day = new Date(year, month, d).getDay();
-        let classes = '';
 
+        let classes = '';
         if (year === thisYear && month === thisMonth && d === thisDate) {
           classes = 'today';
         }
-        if (selectedDate === formatDate(new Date(year, month, d))) {
+        if(selectedDate === formatDate(new Date(year, month, d))) {
           classes += (classes ? ' ' : '') + 'selected';
         }
 
-        const dateStr = formatDate(new Date(year, month, d));
-        calendar += `<td class="${classes}" data-date="${dateStr}">${d}</td>`;
+        calendar += `<td class="${classes}" data-date="${d}">${d}</td>`;
 
         if (day === 6 && d !== lastDate) {
           calendar += '</tr><tr>';
@@ -118,9 +128,11 @@
       document.getElementById('calendar').innerHTML = calendar;
 
       document.querySelectorAll('#calendar td').forEach(td => {
-        td.addEventListener('dblclick', () => {
-          if (td.dataset.date) {
-            window.location.href = `/photos_page/${td.dataset.date}`;
+        td.addEventListener('click', () => {
+          if (td.innerText !== '') {
+            const clickedDate = formatDate(new Date(year, month, td.dataset.date));
+            selectedDate = clickedDate;
+            window.location.href = `/photos_page/${clickedDate}`;
           }
         });
       });
