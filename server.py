@@ -30,6 +30,19 @@ def upload():
     
     return redirect(url_for('get_photos_page', date=date))
 
+@app.route('/delete_photo', methods=['POST'])
+def delete_photo():
+    date = request.form.get('date')
+    filename = request.form.get('filename')
+    
+    date_folder = os.path.join(app.config['UPLOAD_FOLDER'], date)
+    filepath = os.path.join(date_folder, filename)
+    
+    if os.path.exists(filepath):
+        os.remove(filepath)
+    
+    return redirect(url_for('get_photos_page', date=date))
+
 @app.route('/photos_page/<date>')
 def get_photos_page(date):
     date_folder = os.path.join(app.config['UPLOAD_FOLDER'], date)
@@ -42,7 +55,7 @@ def get_photos_page(date):
             with open(filepath, 'rb') as f:
                 data = f.read()
                 encoded = base64.b64encode(data).decode('utf-8')
-                photos.append(f"data:image/jpeg;base64,{encoded}")
+                photos.append({'filename': filename, 'data': f"data:image/jpeg;base64,{encoded}"})
     
     return render_template('photos.html', date=date, photos=photos)
 
