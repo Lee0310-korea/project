@@ -21,6 +21,12 @@
     form {
       display: inline;
     }
+    .upload-section {
+      margin-top: 30px;
+    }
+    .upload-form {
+      margin: 10px;
+    }
   </style>
 </head>
 <body>
@@ -41,11 +47,17 @@
     <p>사진이 없습니다. 사진을 첨부하세요.</p>
   {% endif %}
 
-  <div style="margin-top: 30px;">
-    <form action="/upload" method="post" enctype="multipart/form-data">
+  <div class="upload-section">
+    <form class="upload-form" action="/upload" method="post" enctype="multipart/form-data">
       <input type="hidden" name="date" value="{{ date }}">
-      <input type="file" name="file" accept="image/*" required>
-      <button type="submit">사진 업로드</button>
+      <input type="file" name="face_photo" accept="image/*" required>
+      <button type="submit">얼굴 사진 업로드</button>
+    </form>
+
+    <form class="upload-form" action="/upload" method="post" enctype="multipart/form-data">
+      <input type="hidden" name="date" value="{{ date }}">
+      <input type="file" name="real_photo" accept="image/*" required>
+      <button type="submit">실제 작창 업로드</button>
     </form>
   </div>
 
