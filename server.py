@@ -54,5 +54,20 @@ def get_photos(date):
     
     return jsonify(photos)
 
+@app.route('/photos_page/<date>')
+def get_photos_page(date):
+    date_folder = os.path.join(app.config['UPLOAD_FOLDER'], date)
+    photos = []
+    if os.path.exists(date_folder):
+        files = os.listdir(date_folder)
+        for filename in files:
+            filepath = os.path.join(date_folder, filename)
+            with open(filepath, 'rb') as f:
+                data = f.read()
+                encoded = base64.b64encode(data).decode('utf-8')
+                photos.append(f"data:image/jpeg;base64,{encoded}")
+    
+    return render_template('photos.html', date=date, photos=photos)
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
