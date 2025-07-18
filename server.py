@@ -1,152 +1,153 @@
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify
 import os
 import base64
+import json
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
-app.secret_key = 'your_secret_key_here'  # 꼭 바꿔주세요!
+app.secret_key = 'your_secret_key_here'
 
 app.config['UPLOAD_FOLDER'] = 'uploads'
+app.config['USER_FILE'] = 'users.json'
 
 # 업로드 폴더 생성
 if not os.path.exists(app.config['UPLOAD_FOLDER']):
     os.makedirs(app.config['UPLOAD_FOLDER'])
 
-# 사용자 저장 (임시, 실제 DB 권장)
-# 아이디 : 비밀번호 해시
-users = {}
+# 유저 정보 파일이 없으면 생성
+if not os.path.exists(app.config['USER_FILE']):
+    with open(app.config['USER_FILE'], 'w') as f:
+        json.dump({}, f)
 
-# --- 유틸 함수 ---
-def save_user(username, password):
-    hashed_pw = generate_password_hash(password)
-    users[username] = hashed_pw
+# 유저 정보 불러오기
+def load_users():
+    with open(app.config['USER_FILE'], 'r') as f:
+        return json.load(f)
 
-def verify_user(username, password):
-    if username in users and check_password_hash(users[username], password):
-        return True
-    return False
-
-# --- 라우트 ---
+# 유저 정보 저장
+def save_users(users):
+    with open(app.config['USER_FILE'], 'w') as f:
+        json.dump(users, f)
 
 @app.route('/')
 def home():
     if 'username' in session:
-        return redirect(url_for('calendar_page'))
+        return redirect(url_for('calendar_view'))
     return redirect(url_for('login'))
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        if verify_user(username, password):
-            session['username'] = username
-            return redirect(url_for('calendar_page'))
-        else:
-            return render_template('login.html', error='아이디 또는 비밀번호가 잘못되었습니다.')
-    return render_template('login.html')
+        users = load_users()
+        username = request.form['username']
+        password = request.form['password']
 
-@app.route('/register', methods=['GET', 'POST'])
-def register():
-    if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        confirm = request.form.get('confirm')
-        if not username or not password or not confirm:
-            return render_template('register.html', error='모든 필드를 입력해주세요.')
-        if password != confirm:
-            return render_template('register.html', error='비밀번호가 일치하지 않습니다.')
-        if username in users:
-            return render_template('register.html', error='이미 존재하는 아이디입니다.')
-        save_user(username, password)
-        return redirect(url_for('login'))
-    return render_template('register.html')
+        if username in users and check_password_hash(users[username]['password'], password):
+            session['username'] = username
+            return redirect(url_for('calendar_view'))
+        else:
+            return render_template('login.html', error='아이디 또는 비밀번호가 틀렸습니다.')
+    return render_template('login.html')
 
 @app.route('/logout')
 def logout():
     session.pop('username', None)
     return redirect(url_for('login'))
 
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        users = load_users()
+        username = request.form['username']
+        password = request.form['password']
+
+        if username in users:
+            return render_template('register.html', error='이미 존재하는 아이디입니다.')
+
+        users[username] = {
+            'password': generate_password_hash(password)
+        }
+        save_users(users)
+        return redirect(url_for('login'))
+    return render_template('register.html')
+
 @app.route('/calendar')
-def calendar_page():
+def calendar_view():
     if 'username' not in session:
         return redirect(url_for('login'))
     return render_template('project.html', username=session['username'])
 
+def get_user_date_folder(username, date):
+    path = os.path.join(app.config['UPLOAD_FOLDER'], username, date)
+    if not os.path.exists(path):
+        os.makedirs(path)
+    return path
+
+@app.route('/photos_page/<date>')
+def photos_page(date):
+    if 'username' not in session:
+        return redirect(url_for('login'))
+
+    username = session['username']
+    folder = get_user_date_folder(username, date)
+    photos = []
+
+    if os.path.exists(folder):
+        for filename in os.listdir(folder):
+            filepath = os.path.join(folder, filename)
+            with open(filepath, 'rb') as f:
+                encoded = base64.b64encode(f.read()).decode('utf-8')
+                photos.append({
+                    'filename': filename,
+                    'data': f"data:image/jpeg;base64,{encoded}"
+                })
+
+    return render_template('photos.html', date=date, photos=photos, username=username)
+
 @app.route('/upload', methods=['POST'])
 def upload():
     if 'username' not in session:
-        return jsonify({'status': 'fail', 'message': '로그인이 필요합니다.'}), 401
-    
-    username = session['username']
+        return jsonify({'status': 'fail', 'message': '로그인 필요'})
 
-    if 'files[]' not in request.files:
-        return jsonify({'status': 'fail', 'message': 'No file part'}), 400
-    
-    files = request.files.getlist('files[]')
+    if 'file' not in request.files:
+        return jsonify({'status': 'fail', 'message': '파일 없음'})
+
+    file = request.files['file']
     date = request.form.get('date')
-    photo_type = request.form.get('photo_type')  # 'face' or 'work'
-    
-    if not date or not photo_type:
-        return jsonify({'status': 'fail', 'message': 'No date or photo_type specified'}), 400
+    photo_type = request.form.get('photo_type', 'default')
 
-    # 사용자별 폴더 -> 날짜별 폴더 -> 사진 종류별 폴더
-    base_path = os.path.join(app.config['UPLOAD_FOLDER'], username, date, photo_type)
-    if not os.path.exists(base_path):
-        os.makedirs(base_path)
+    if not date:
+        return jsonify({'status': 'fail', 'message': '날짜 필요'})
 
-    saved_files = []
-    for file in files:
-        filename = file.filename
-        filepath = os.path.join(base_path, filename)
-        file.save(filepath)
-        saved_files.append(filename)
-
-    return jsonify({'status': 'success', 'message': f'{len(saved_files)} files uploaded for {date} ({photo_type}).'})
-
-@app.route('/photos/<date>/<photo_type>', methods=['GET'])
-def get_photos(date, photo_type):
-    if 'username' not in session:
-        return jsonify([]), 401
-    
     username = session['username']
-    folder_path = os.path.join(app.config['UPLOAD_FOLDER'], username, date, photo_type)
-    
-    if not os.path.exists(folder_path):
-        return jsonify([])
-    
-    files = os.listdir(folder_path)
-    photos = []
-    for filename in files:
-        filepath = os.path.join(folder_path, filename)
-        with open(filepath, 'rb') as f:
-            data = f.read()
-            encoded = base64.b64encode(data).decode('utf-8')
-            photos.append(f"data:image/jpeg;base64,{encoded}")
-    return jsonify(photos)
+
+    folder = os.path.join(app.config['UPLOAD_FOLDER'], username, date, photo_type)
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+
+    filename = file.filename
+    filepath = os.path.join(folder, filename)
+    file.save(filepath)
+
+    return redirect(url_for('photos_page', date=date))
 
 @app.route('/delete_photo', methods=['POST'])
 def delete_photo():
     if 'username' not in session:
-        return jsonify({'status': 'fail', 'message': '로그인이 필요합니다.'}), 401
-    
+        return redirect(url_for('login'))
+
     username = session['username']
-    date = request.form.get('date')
-    photo_type = request.form.get('photo_type')
-    filename = request.form.get('filename')
+    date = request.form['date']
+    filename = request.form['filename']
+    photo_type = request.form.get('photo_type', 'default')
 
-    if not date or not photo_type or not filename:
-        return jsonify({'status': 'fail', 'message': '필수 정보가 부족합니다.'}), 400
+    folder = os.path.join(app.config['UPLOAD_FOLDER'], username, date, photo_type)
+    filepath = os.path.join(folder, filename)
 
-    file_path = os.path.join(app.config['UPLOAD_FOLDER'], username, date, photo_type, filename)
-    if os.path.exists(file_path):
-        os.remove(file_path)
-        return jsonify({'status': 'success', 'message': '파일이 삭제되었습니다.'})
-    else:
-        return jsonify({'status': 'fail', 'message': '파일을 찾을 수 없습니다.'}), 404
+    if os.path.exists(filepath):
+        os.remove(filepath)
+
+    return redirect(url_for('photos_page', date=date))
 
 if __name__ == '__main__':
-    # 예시: admin 계정 생성 (비밀번호: 1234)
-    if 'admin' not in users:
-        save_user('admin', '1234')
     app.run(host='0.0.0.0', port=5000, debug=True)
