@@ -11,7 +11,7 @@ if not os.path.exists(app.config['UPLOAD_FOLDER']):
 
 @app.route('/')
 def index():
-    return render_template('calendar.html')
+    return render_template('project.html')
 
 @app.route('/upload', methods=['POST'])
 def upload():
