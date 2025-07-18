@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>{{ date }} Photos</title>
+    <style>
+        img {
+            max-width: 200px;
+            margin: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Photos for {{ date }}</h1>
+
+    {% if photos %}
+        {% for photo in photos %}
+            <img src="{{ photo }}">
+        {% endfor %}
+    {% else %}
+        <p>No photos for this date.</p>
+    {% endif %}
+</body>
+</html>
