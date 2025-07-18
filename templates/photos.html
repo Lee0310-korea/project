@@ -1,24 +1,27 @@
 <!DOCTYPE html>
-<html>
+<html lang="ko">
 <head>
-    <meta charset="utf-8">
-    <title>{{ date }} Photos</title>
-    <style>
-        img {
-            max-width: 200px;
-            margin: 10px;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <title>{{ date }} 사진</title>
 </head>
 <body>
-    <h1>Photos for {{ date }}</h1>
+  <h1>{{ date }} 사진</h1>
 
-    {% if photos %}
-        {% for photo in photos %}
-            <img src="{{ photo }}">
-        {% endfor %}
-    {% else %}
-        <p>No photos for this date.</p>
-    {% endif %}
+  {% if photos %}
+    {% for photo in photos %}
+      <img src="{{ photo }}" alt="Photo" width="300" style="margin:10px;">
+    {% endfor %}
+  {% else %}
+    <p>사진이 없습니다. 사진을 첨부하세요.</p>
+  {% endif %}
+
+  <form action="/upload" method="post" enctype="multipart/form-data">
+    <input type="hidden" name="date" value="{{ date }}">
+    <input type="file" name="file" accept="image/*" required>
+    <button type="submit">사진 업로드</button>
+  </form>
+
+  <br>
+  <a href="/">← 달력으로 돌아가기</a>
 </body>
 </html>
